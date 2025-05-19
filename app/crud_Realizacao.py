@@ -1,0 +1,176 @@
+from datetime import datetime
+from db import conectar
+
+def menu_realizacao():
+    while True:
+        print("\n==== MENU - REALIZAÇÔES ====")
+        print("1. Adicionar Realização")
+        print("2. Editar Nota")
+        print("3. Excluir Realização")
+        print("4. Listar realizações por aluno")
+        print("5. Listar todas as realizações")
+        print("6. Voltar ao menu principal")
+
+        opcao = input("Escolha uma opção: ")
+
+        if opcao == '1':
+            adicionar_realizacao()
+        elif opcao == '2':
+            editar_nota_realizacao()
+        elif opcao == '3':
+            excluir_realizacao()
+        elif opcao == '4':
+            listar_realizacoes_por_aluno()
+        elif opcao == '5':
+            listar_todas_realizacoes()
+        elif opcao == '6':
+            break
+        else:
+            print("Opção inválida.")
+
+
+def adicionar_realizacao():
+    try:
+        aluno = input("Matrícula do aluno: ")
+        prova = input("ID da prova: ")
+        data_str = input("Data (AAAA-MM-DD): ")
+        nota_str = input("Nota (opcional): ")
+
+        data = datetime.strptime(data_str, "%Y-%m-%d").date()
+        nota = float(nota_str) if nota_str.strip() != '' else None
+
+        conn = conectar()
+        cur = conn.cursor()
+
+        if nota is not None:
+            cur.execute("""
+                INSERT INTO Realizacao (fk_Prova_id, fk_Aluno_matricula, data, nota_obtida)
+                VALUES (%s, %s, %s, %s)
+            """, (prova, aluno, data, nota))
+        else:
+            cur.execute("""
+                INSERT INTO Realizacao (fk_Prova_id, fk_Aluno_matricula, data)
+                VALUES (%s, %s, %s)
+            """, (prova, aluno, data))
+
+        conn.commit()
+        print("Realização registrada com sucesso!")
+
+    except Exception as e:
+        print(f"Erro ao adicionar realização: {e}")
+
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+
+def editar_nota_realizacao():
+    try:
+        aluno = input("Matrícula do aluno: ")
+        prova = input("ID da prova: ")
+        nova_nota = float(input("Nova nota: "))
+
+        conn = conectar()
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE Realizacao
+            SET nota_obtida = %s
+            WHERE fk_Aluno_matricula = %s AND fk_Prova_id = %s
+        """, (nova_nota, aluno, prova))
+
+        conn.commit()
+        print("Nota atualizada com sucesso!")
+
+    except Exception as e:
+        print(f"Erro ao editar nota: {e}")
+
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+
+def excluir_realizacao():
+    try:
+        aluno = input("Matrícula do aluno: ")
+        prova = input("ID da prova: ")
+
+        conn = conectar()
+        cur = conn.cursor()
+
+        cur.execute("""
+            DELETE FROM Realizacao
+            WHERE fk_Aluno_matricula = %s AND fk_Prova_id = %s
+        """, (aluno, prova))
+
+        conn.commit()
+        print("Realização excluída com sucesso!")
+
+    except Exception as e:
+        print(f"Erro ao excluir realização: {e}")
+
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+
+def listar_todas_realizacoes():
+    try:
+        conn = conectar()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT r.id, a.nome, p.id, d.nome, r.data, r.nota_obtida
+            FROM Realizacao r
+            JOIN Aluno a ON r.fk_Aluno_matricula = a.matricula
+            JOIN Prova p ON r.fk_Prova_id = p.id
+            JOIN Disciplina d ON p.fk_Disciplina_id = d.id
+            ORDER BY r.data;
+        """)
+
+        resultados = cur.fetchall()
+
+        print("\nRealizações registradas:")
+        for r in resultados:
+            print(f"ID: {r[0]}, Aluno: {r[1]}, Prova: {r[2]}, Disciplina: {r[3]}, Data: {r[4]}, Nota: {r[5]}")
+    except Exception as e:
+        print("Erro ao listar realizações:", e)
+
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+
+def listar_realizacoes_por_aluno():
+    try:
+        matricula = input("Digite a matrícula do aluno: ")
+
+        conn = conectar()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT a.nome, d.nome AS disciplina, p.tipo, r.data, r.nota_obtida
+            FROM Realizacao r
+            JOIN Prova p ON r.fk_Prova_id = p.id
+            JOIN Disciplina d ON p.fk_Disciplina_id = d.id
+            JOIN Aluno a ON a.matricula = r.fk_Aluno_matricula
+            WHERE r.fk_Aluno_matricula = %s
+            ORDER BY r.data;
+        """, (matricula,))
+
+        resultados = cur.fetchall()
+
+        if resultados:
+            for d in resultados:
+                print(f"\nRealizações do(a) aluno(a) {d[0]}:")
+                print(f"Disciplina: {d[1]}, Tipo: {d[2]}, Data: {d[3]}, Nota: {d[4]}")
+        else:
+            print("Nenhuma realização encontrada para este aluno.")
+
+    except Exception as e:
+        print("Erro ao listar realizações:", e)
+
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
