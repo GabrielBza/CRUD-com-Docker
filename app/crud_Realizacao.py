@@ -28,10 +28,13 @@ def menu_realizacao():
         else:
             print("Opção inválida.")
 
+        input("Aperte Enter para continuar")
+
 
 def adicionar_realizacao():
     try:
-        aluno = input("Matrícula do aluno: ")
+        # Pega os dados da nova realização
+        aluno = input("Matrícula do(a) aluno(a): ")
         prova = input("ID da prova: ")
         data_str = input("Data (AAAA-MM-DD): ")
         nota_str = input("Nota (opcional): ")
@@ -39,9 +42,11 @@ def adicionar_realizacao():
         data = datetime.strptime(data_str, "%Y-%m-%d").date()
         nota = float(nota_str) if nota_str.strip() != '' else None
 
+        # Cria a conexão com o BD e o cursor
         conn = conectar()
         cur = conn.cursor()
 
+        # Insere o registro da realização
         if nota is not None:
             cur.execute("""
                 INSERT INTO Realizacao (fk_Prova_id, fk_Aluno_matricula, data, nota_obtida)
@@ -53,6 +58,7 @@ def adicionar_realizacao():
                 VALUES (%s, %s, %s)
             """, (prova, aluno, data))
 
+        # Commita e finaliza a operação
         conn.commit()
         print("Realização registrada com sucesso!")
 
@@ -61,18 +67,22 @@ def adicionar_realizacao():
 
     finally:
         if conn:
+            # Fecha a conexão e cursor
             cur.close()
             conn.close()
 
 def editar_nota_realizacao():
     try:
-        aluno = input("Matrícula do aluno: ")
+        # Pega os dados do aluno e do id da prova juntamente com a nova nota
+        aluno = input("Matrícula do(a) aluno(a): ")
         prova = input("ID da prova: ")
         nova_nota = float(input("Nova nota: "))
 
+        # Conecta ao BD e cria o cursor
         conn = conectar()
         cur = conn.cursor()
 
+        # Realiza a atualização e commita as mudanças
         cur.execute("""
             UPDATE Realizacao
             SET nota_obtida = %s
@@ -87,6 +97,7 @@ def editar_nota_realizacao():
 
     finally:
         if conn:
+            # Fecha a conexão e o cursor
             cur.close()
             conn.close()
 
@@ -148,27 +159,41 @@ def listar_realizacoes_por_aluno():
         conn = conectar()
         cur = conn.cursor()
 
+        # Buscar o nome do aluno
         cur.execute("""
-            SELECT a.nome, d.nome AS disciplina, p.tipo, r.data, r.nota_obtida
+            SELECT nome
+            FROM Aluno
+            WHERE matricula = %s
+        """, (matricula,))
+
+        aluno_nome = cur.fetchone()
+
+        if aluno_nome is None:
+            print("Aluno não encontrado.")
+            return
+
+        # Agora, buscar as realizações associadas ao aluno
+        cur.execute("""
+            SELECT d.nome AS disciplina, p.tipo, r.data, r.nota_obtida
             FROM Realizacao r
             JOIN Prova p ON r.fk_Prova_id = p.id
             JOIN Disciplina d ON p.fk_Disciplina_id = d.id
-            JOIN Aluno a ON a.matricula = r.fk_Aluno_matricula
             WHERE r.fk_Aluno_matricula = %s
             ORDER BY r.data;
         """, (matricula,))
 
-        resultados = cur.fetchall()
+        realizacoes = cur.fetchall()
 
-        if resultados:
-            for d in resultados:
-                print(f"\nRealizações do(a) aluno(a) {d[0]}:")
-                print(f"Disciplina: {d[1]}, Tipo: {d[2]}, Data: {d[3]}, Nota: {d[4]}")
+        # Exibir as realizações do aluno
+        print(f"\nRealizações do(a) aluno(a) {aluno_nome[0]}:")
+        if realizacoes:
+            for r in realizacoes:
+                print(f"Disciplina: {r[0]}, Tipo: {r[1]}, Data: {r[2]}, Nota: {r[3]}")
         else:
             print("Nenhuma realização encontrada para este aluno.")
 
     except Exception as e:
-        print("Erro ao listar realizações:", e)
+        print(f"Erro ao listar realizações: {e}")
 
     finally:
         if conn:

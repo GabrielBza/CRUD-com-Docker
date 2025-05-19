@@ -31,21 +31,27 @@ def menu_disciplina():
         else:
             print("Opção inválida. Tente novamente.")
 
+        input("Aperte Enter para continuar")
+
 
 def adicionar_disciplina():
     try:
+        # Recebe os dados do usuário
         nome = input("Nome da disciplina: ")
         descricao = input("Descrição: ")
         id_professor = input("ID do professor responsável: ")
 
+        # Abre a conexão com o BD e cria o cursor
         conn = conectar()
         cur = conn.cursor()
 
+        # Executa o comando passando os dados da nova disciplina
         cur.execute("""
             INSERT INTO Disciplina (nome, descricao, fk_Professor_id)
             VALUES (%s, %s, %s)
         """, (nome, descricao, id_professor))
 
+        # Commita, finalizando a operação
         conn.commit()
         print("Disciplina cadastrada com sucesso!")
 
@@ -54,31 +60,38 @@ def adicionar_disciplina():
 
     finally:
         if conn:
+            # Fecha conexão e cursor
             cur.close()
             conn.close()
 
 def editar_disciplina():
     try:
+        # Pega o id da disciplina inserido pelo usuário
         id_disc = input("ID da disciplina a editar: ")
 
+        # Inicia conexão com o BD e o cursor
         conn = conectar()
         cur = conn.cursor()
 
+        # Executa um select e verifica se a disciplina foi retornada nele
         cur.execute("SELECT * FROM Disciplina WHERE id = %s", (id_disc,))
         if cur.fetchone() is None:
             print("Disciplina não encontrada.")
             return
 
+        # Pega os novos dados da disciplina
         nome = input("Novo nome: ")
         descricao = input("Nova descrição: ")
         id_professor = input("Novo ID do professor responsável: ")
 
+        # Executa um UPDATE com os novos dados
         cur.execute("""
             UPDATE Disciplina
             SET nome = %s, descricao = %s, fk_Professor_id = %s
             WHERE id = %s
         """, (nome, descricao, id_professor, id_disc))
 
+        # Commita as modificações e encerra a operação
         conn.commit()
         print("Disciplina atualizada com sucesso!")
 
@@ -87,21 +100,26 @@ def editar_disciplina():
 
     finally:
         if conn:
+            # Encerra a conexão com o BD e o cursor
             cur.close()
             conn.close()
 
 def excluir_disciplina():
     try:
+        # Pega do usuário o id da disciplina
         id_disc = input("ID da disciplina a excluir: ")
 
+        # Conecta ao BD e cria o cursor
         conn = conectar()
         cur = conn.cursor()
 
+        # Executa um select para ver se a disciplina foi encontrada
         cur.execute("SELECT * FROM Disciplina WHERE id = %s", (id_disc,))
         if cur.fetchone() is None:
             print("Disciplina não encontrada.")
             return
 
+        # Realiza a operação de deleção e commita, finalizando a operação
         cur.execute("DELETE FROM Disciplina WHERE id = %s", (id_disc,))
         conn.commit()
         print("Disciplina excluída com sucesso!")
@@ -111,16 +129,20 @@ def excluir_disciplina():
 
     finally:
         if conn:
+            # Encerra a conexão com o BD e o cursor
             cur.close()
             conn.close()
 
 def visualizar_disciplina():
     try:
+        # Pega o id inserido pelo usuário
         id_disc = input("ID da disciplina: ")
 
+        # Conecta ao BD e cria o cursor
         conn = conectar()
         cur = conn.cursor()
 
+        # Executa o SELECT buscando a disciplina
         cur.execute("""
             SELECT d.id, d.nome, d.descricao, p.nome
             FROM Disciplina d
@@ -140,14 +162,17 @@ def visualizar_disciplina():
 
     finally:
         if conn:
+            # Encerra a conexão com o BD e o cursor
             cur.close()
             conn.close()
 
 def listar_disciplinas():
     try:
+        # Conecta com o BD e cria cursor
         conn = conectar()
         cur = conn.cursor()
 
+        # Executa o SELECT para pegar as disciplinas
         cur.execute("""
             SELECT d.id, d.nome, d.descricao, p.nome
             FROM Disciplina d
@@ -155,6 +180,7 @@ def listar_disciplinas():
             ORDER BY d.id
         """)
         
+        # Salva as disciplinas
         disciplinas = cur.fetchall()
 
         print("\nDisciplinas cadastradas:")
@@ -166,20 +192,36 @@ def listar_disciplinas():
 
     finally:
         if conn:
+            # Fecha a conexão e o cursor
             cur.close()
             conn.close()
 
 def listar_disciplinas_por_professor():
     try:
+        # Pega o id do professor inserido pelo usuário
         id_professor = input("ID do professor: ")
 
+        # Conecta ao BD e cria o cursor
         conn = conectar()
         cur = conn.cursor()
 
+        # Pega o nome do professor
         cur.execute("""
-            SELECT p.nome, d.id, d.nome, d.descricao
+            SELECT nome
+            FROM Professor
+            WHERE id = %s
+        """, (id_professor,))
+        
+        professor_nome = cur.fetchone()
+        
+        if professor_nome is None:
+            print("Professor não encontrado.")
+            return
+
+        # Executa um Select buscando todas as disciplinas que o professor com o id fornecido ministra
+        cur.execute("""
+            SELECT d.id, d.nome, d.descricao
             FROM Disciplina d
-            JOIN Professor p on p.id = d.fk_Professor_id
             WHERE d.fk_Professor_id = %s
             ORDER BY d.id
         """, (id_professor,))
@@ -188,15 +230,16 @@ def listar_disciplinas_por_professor():
 
         if disciplinas:
             for d in disciplinas:
-                print(f"\nDisciplinas do(a) Professor(a) {d[0]}:")
-                print(f"ID: {d[1]}, Nome: {d[2]}, Descrição: {d[3]}")
+                print(f"\nDisciplinas do(a) Professor(a) {professor_nome[0]}:")
+                print(f"ID: {d[0]}, Nome: {d[1]}, Descrição: {d[2]}")
         else:
-            print("Nenhuma disciplina encontrada para este professor.")
+            print(f"Nenhuma disciplina encontrada para o(a) Professor(a) {professor_nome[0]}.")
 
     except Exception as e:
         print(f"Erro ao listar disciplinas: {e}")
 
     finally:
         if conn:
+            # Fecha cursor e conexão
             cur.close()
             conn.close()
